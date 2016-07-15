@@ -17,6 +17,21 @@ using namespace std;
 SDL_Surface *draw_text(const char *text,const char *fontname,
 		int max_size,int min_size,int img_width);
 
+class GeneralError : public std::exception
+{
+public:
+	GeneralError(const char *msg="") : pMessage(msg) {};
+	GeneralError(string& msg) : pMessage(msg.c_str()) {};
+
+	virtual const char* what() const throw()
+	{
+		return pMessage;
+	}
+
+private:
+	const char *pMessage;
+};
+
 class FontNotFound : public std::exception
 {
 public:
@@ -56,8 +71,12 @@ public:
 
 	virtual ~TextSurface();
 
+	void render();
+	void blitToSurface(SDL_Surface *target);
+
 	enum justify getJustify();
-	void setJustify(enum justify j);
+	void setHJustify(enum justify j);
+	void setVJustify(enum justify j);
 	int getImageHeight() const;
 	void setImageHeight(int imageHeight);
 	int getImageWidth() const;
@@ -80,6 +99,7 @@ public:
 private:
 	SDL_Surface *surface;
 	string text;
+	string fontfile;
 	int max_point_size;
 	int min_point_size;
 	int image_height;
@@ -91,5 +111,7 @@ private:
 
 	enum justify h_justify;
 	enum justify v_justify;
+
+	void basic_init();
 };
 #endif /* TEXT_H_ */

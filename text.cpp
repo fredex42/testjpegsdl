@@ -40,12 +40,116 @@ SDL_Surface *draw_text(const char *text,const char *fontname,
 	return surface;
 }
 
+void TextSurface::basic_init() {
+	surface = NULL;
+	text = string("");
+	fontfile = string(DEFAULT_FONT);
+	max_point_size=72;
+	min_point_size=2;
+	image_height=-1;
+	image_width=-1;
+	margin_left=0;
+	margin_right=0;
+	margin_top=0;
+	margin_bottom=0;
+
+	h_justify = J_MIDDLE;
+	v_justify = J_BOTTOM;
+}
+
+TextSurface::TextSurface() {
+	basic_init();
+}
+
+TextSurface::TextSurface(string& text) {
+	basic_init();
+	this->text = text;
+}
+
+TextSurface::TextSurface(string& text, string& fontfile) {
+	basic_init();
+	this->text = string(text);
+	this->fontfile = string(fontfile);
+}
+
+TextSurface::~TextSurface() {
+	if(surface) SDL_FreeSurface(surface);
+}
+
+void TextSurface::render() {
+	TTF_Font *font = NULL;
+	SDL_Color color = {0xFF,0xFF,0xFF};
+	int target_w,target_h;
+
+	for(int font_size=max_point_size;font_size>=min_point_size;--font_size){
+		//cout << "Testing font size of " << font_size << endl;
+		font = TTF_OpenFont(fontfile.c_str(),font_size);
+		if(!font){
+			throw FontNotFound(fontfile.c_str());
+		}
+		TTF_SizeText(font, text.c_str(), &target_w, &target_h);
+		if(target_w<image_width){
+			cout << "Final text size is "<< font_size << " for pixel width of " << target_w << endl;
+			break;
+		}
+		TTF_CloseFont(font);
+		font = NULL;
+	}
+
+	if(font==NULL){
+		throw GeneralError("Could not find an appropriate font size");
+	}
+
+	surface = TTF_RenderText_Blended(font,text.c_str(),color);
+	TTF_CloseFont(font);
+	if(surface==NULL) throw TTFError();
+}
+
+void TextSurface::blitToSurface(SDL_Surface *target)
+{
+	SDL_Rect dest_blit_rect;
+	if(!surface) throw GeneralError("you must render before calling bitToSurface");
+
+	switch(h_justify){
+	case J_TOP:
+		dest_blit_rect.x = 0;
+		break;
+	case J_MIDDLE:
+		dest_blit_rect.x = target->w/2.0 - surface->w/2.0;
+		break;
+	case J_BOTTOM:
+		dest_blit_rect.x = target->w - surface->w;
+		break;
+	}
+
+	switch(v_justify){
+	case J_TOP:
+		dest_blit_rect.y = 0;
+		break;
+	case J_MIDDLE:
+		dest_blit_rect.y = target->h/2.0 - surface->h/2.0;
+		break;
+	case J_BOTTOM:
+		dest_blit_rect.y = target->h - surface->h;
+		break;
+	}
+
+	dest_blit_rect.w = surface->w;
+	dest_blit_rect.h = surface->h;
+
+	SDL_BlitSurface(surface,NULL,target,&dest_blit_rect);
+}
+
 enum justify TextSurface::getJustify() const {
 	return h_justify;
 }
 
-void TextSurface::setJustify(enum justify j) {
+void TextSurface::setHJustify(enum justify j) {
 	h_justify = j;
+}
+
+void TextSurface::setVJustify(enum justify j) {
+	v_justify = j;
 }
 
 int TextSurface::getImageHeight() const {
@@ -110,10 +214,6 @@ int TextSurface::getMinPointSize() const {
 
 void TextSurface::setMinPointSize(int minPointSize) {
 	min_point_size = minPointSize;
-}
-
-const SDL_Surface* TextSurface::getSurface() const {
-	return (const SDL_Surface *)surface;
 }
 
 enum justify TextSurface::getJustify() {

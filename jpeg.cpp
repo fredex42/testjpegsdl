@@ -12,6 +12,58 @@
 #include <SDL2/SDL_surface.h>
 
 #define READ_LINE_SIZE 1
+#define WRITE_LINE_SIZE 1
+
+void write_jpeg_file(char *filename, SDL_Surface *surface)
+{
+	struct jpeg_compress_struct cinfo;
+	struct jpeg_error_mgr jerr;
+	FILE *fp;
+	Uint32 rmask, gmask, bmask, amask;
+	JSAMPROW row_pointer[WRITE_LINE_SIZE];
+	int row_stride;
+
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
+    rmask = 0xff000000;
+    gmask = 0x00ff0000;
+    bmask = 0x0000ff00;
+    amask = 0x000000ff;
+#else
+    rmask = 0x000000ff;
+    gmask = 0x0000ff00;
+    bmask = 0x00ff0000;
+    amask = 0xff000000;
+#endif
+
+    cinfo.err = jpeg_std_error(&jerr);
+    jpeg_create_compress(&cinfo);
+
+    fp = fopen(filename,"wb");
+    jpeg_stdio_dest(&cinfo,fp);
+    cinfo.image_width = surface->w;
+    cinfo.image_height = surface->h;
+    cinfo.input_components = surface->pitch/surface->w;
+    cinfo.in_color_space = JCS_RGB;
+
+    printf("Writing jpeg image %dx%d, with %d channels\n",cinfo.image_height,cinfo.image_width,cinfo.input_components);
+
+    jpeg_set_defaults(&cinfo);
+
+    jpeg_start_compress(&cinfo, FALSE);
+
+    row_stride = cinfo.image_width * 3;
+
+    SDL_LockSurface(surface);
+    unsigned char *buf=(unsigned char *)surface->pixels;
+    while(cinfo.next_scanline < cinfo.image_height){
+    	row_pointer[0] = & buf[cinfo.next_scanline * row_stride];
+    	jpeg_write_scanlines(&cinfo,row_pointer,WRITE_LINE_SIZE);
+    }
+
+    SDL_UnlockSurface(surface);
+    jpeg_finish_compress(&cinfo);
+    fclose(fp);
+}
 
 SDL_Surface *load_jpeg_file(char *filename)
 {
